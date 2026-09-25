@@ -3,55 +3,94 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ZIP zu Gitea hochladen</title>
+<title>Gitea Upload</title>
 <style>
   :root{
-    --bg:#eef0f2; --card:#ffffff; --text:#1a1a1a; --muted:#5a6472;
-    --accent:#f07d1e; --accent-dark:#c9650f; --border:#d7dbe0;
-    --ok:#1a7f37; --err:#c0392b; --header-bg:#111214;
+    --bg:#141517; --panel:#1c1d20; --panel-alt:#202225; --text:#e6e7ea; --muted:#8b9099;
+    --accent:#f07d1e; --accent-dark:#c9650f; --border:#2c2e33;
+    --ok:#5fd98a; --err:#ff8a80; --header-bg:#0d0e0f;
   }
   *{box-sizing:border-box;}
   body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);}
-  header{background:var(--header-bg);color:#fff;padding:22px 24px;}
-  header h1{margin:0;font-size:1.6rem;}
-  header h1 .accent{color:var(--accent);}
-  header p{margin:6px 0 0;color:#b8bcc2;font-size:.95rem;}
-  main{max-width:760px;margin:24px auto 60px;padding:0 16px;}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:20px;}
-  .card h2{margin:0 0 4px;font-size:1.05rem;}
-  .card .step-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:.85rem;margin-right:8px;}
-  label{display:block;font-size:.88rem;color:var(--muted);margin:12px 0 4px;}
+  header{background:var(--header-bg);border-bottom:2px solid var(--accent);padding:16px 24px;
+         display:flex;align-items:center;justify-content:space-between;}
+  header .title{font-weight:800;font-size:1.3rem;letter-spacing:.5px;}
+  header .title .accent{color:var(--accent);}
+  header .subtitle{color:var(--muted);font-size:.8rem;margin-left:10px;font-weight:600;letter-spacing:.5px;}
+  header .icons{display:flex;gap:8px;}
+  header .icons button{background:var(--panel);border:1px solid var(--border);color:var(--text);
+         width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:1rem;
+         display:flex;align-items:center;justify-content:center;padding:0;line-height:1;}
+  header .icons button:hover{border-color:var(--accent);color:var(--accent);}
+  button:focus{outline:none;}
+  button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  main{max-width:760px;margin:24px auto 40px;padding:0 16px;}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:18px;}
+  .card h2{margin:0 0 4px;font-size:1.02rem;}
+  .card .step-num{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;
+         border-radius:50%;background:var(--accent);color:#111;font-size:.8rem;font-weight:700;margin-right:8px;}
+  label{display:block;font-size:.85rem;color:var(--muted);margin:12px 0 4px;}
   input[type=text],input[type=password],input[type=url],select{
-    width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:6px;font-size:.95rem;background:#fbfbfc;
+    width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:6px;font-size:.93rem;
+    background:var(--panel-alt);color:var(--text);
   }
-  input[type=checkbox]{margin-right:6px;}
+  input::placeholder{color:#5b5f66;}
+  input[type=checkbox]{margin-right:6px;accent-color:var(--accent);}
+  .checkline{display:flex;align-items:center;font-size:.85rem;color:var(--muted);margin-top:10px;}
   .row{display:flex;gap:12px;flex-wrap:wrap;}
-  .row > *{flex:1;min-width:160px;}
-  button{background:var(--accent);color:#fff;border:none;border-radius:6px;padding:10px 16px;font-size:.95rem;cursor:pointer;margin-top:14px;}
-  button:hover{background:var(--accent-dark);}
-  button.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
-  button.secondary:hover{background:#f3f4f5;}
-  button:disabled{background:#c9ccd1;cursor:not-allowed;}
-  .hint{font-size:.82rem;color:var(--muted);margin-top:6px;}
-  .status{margin-top:14px;font-size:.9rem;}
+  .row > *{flex:1;min-width:150px;}
+  button{background:var(--accent);color:#111;border:none;border-radius:6px;padding:9px 15px;
+         font-size:.9rem;font-weight:600;cursor:pointer;margin-top:14px;}
+  button:hover{background:var(--accent-dark);color:#fff;}
+  button.secondary{background:var(--panel-alt);color:var(--text);border:1px solid var(--border);}
+  button.secondary:hover{border-color:var(--accent);color:var(--accent);background:var(--panel-alt);}
+  button.small{padding:6px 12px;font-size:.82rem;margin-top:0;}
+  button:disabled{background:#3a3c40;color:#787c82;cursor:not-allowed;}
+  .hint{font-size:.78rem;color:var(--muted);margin-top:6px;}
+  .status{margin-top:12px;font-size:.87rem;}
   .status.ok{color:var(--ok);}
   .status.err{color:var(--err);}
-  #log{margin-top:14px;background:#0e0f11;color:#d7dbe0;border-radius:8px;padding:12px;font-family:ui-monospace,Consolas,monospace;font-size:.82rem;max-height:220px;overflow-y:auto;white-space:pre-wrap;display:none;}
-  #log .l-ok{color:#7ed99a;}
-  #log .l-err{color:#ff8a80;}
-  .progress-wrap{margin-top:10px;height:8px;border-radius:4px;background:#e2e4e7;overflow:hidden;display:none;}
+  #log{margin-top:14px;background:#0d0e0f;color:#c7cad0;border-radius:8px;padding:12px;
+       font-family:ui-monospace,Consolas,monospace;font-size:.8rem;max-height:200px;overflow-y:auto;
+       white-space:pre-wrap;display:none;border:1px solid var(--border);}
+  #log .l-ok{color:var(--ok);}
+  #log .l-err{color:var(--err);}
+  .progress-wrap{margin-top:10px;height:7px;border-radius:4px;background:#2c2e33;overflow:hidden;display:none;}
   .progress-bar{height:100%;background:var(--accent);width:0%;transition:width .2s;}
-  fieldset{border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:8px;}
-  fieldset legend{font-size:.85rem;color:var(--muted);padding:0 6px;}
-  .disabled-section{opacity:.5;pointer-events:none;}
-  footer{text-align:center;color:var(--muted);font-size:.8rem;padding:20px;}
+  fieldset{border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:10px;}
+  fieldset legend{font-size:.8rem;color:var(--muted);padding:0 6px;}
+  .disabled-section{opacity:.45;pointer-events:none;}
+  details{margin-top:10px;font-size:.85rem;color:var(--muted);}
+  details summary{cursor:pointer;color:var(--text);}
+  #fileList{max-height:150px;overflow-y:auto;margin-top:8px;font-family:ui-monospace,Consolas,monospace;
+       font-size:.78rem;background:var(--panel-alt);border-radius:6px;padding:8px;border:1px solid var(--border);}
+  footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;color:var(--muted);
+         font-size:.8rem;padding:18px 24px;border-top:1px solid var(--border);}
+  footer a{color:var(--muted);text-decoration:none;margin-right:16px;}
+  footer a:hover{color:var(--accent);}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;
+           justify-content:center;z-index:50;}
+  .overlay.open{display:flex;}
+  .modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:22px 24px;
+         max-width:480px;width:90%;max-height:80vh;overflow-y:auto;}
+  .modal h3{margin-top:0;}
+  .modal .close{float:right;background:none;border:none;color:var(--muted);font-size:1.2rem;
+                cursor:pointer;margin:0;padding:0;}
+  .modal ol,.modal ul{padding-left:20px;font-size:.9rem;color:var(--text);}
+  .modal li{margin-bottom:8px;}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>ZIP <span class="accent">→</span> Gitea</h1>
-  <p>Lädt eine ZIP-Datei direkt aus deinem Browser in ein Gitea-Repository hoch. Nichts verlässt deinen Rechner außer der Verbindung zu deinem eigenen Gitea-Server.</p>
+  <div>
+    <span class="title">GITEA <span class="accent">UPLOAD</span></span>
+    <span class="subtitle">ZIP HOCHLADEN</span>
+  </div>
+  <div class="icons">
+    <button id="btnHelp" title="Anleitung">?</button>
+    <button id="btnSettings" title="Einstellungen">⚙</button>
+  </div>
 </header>
 
 <main>
@@ -59,7 +98,7 @@
   <div class="card">
     <h2><span class="step-num">1</span>Gitea-Zugang</h2>
     <label for="serverUrl">Gitea-Server</label>
-    <input type="url" id="serverUrl" value="https://git.obraasch.de" placeholder="https://git.example.de">
+    <input type="url" id="serverUrl" placeholder="https://git.beispiel.de">
 
     <div class="row">
       <div>
@@ -71,23 +110,26 @@
         <input type="password" id="password" autocomplete="current-password">
       </div>
     </div>
-    <p class="hint">Ein Zugangstoken (Einstellungen → Anwendungen → Neues Token in Gitea) ist sicherer als das echte Passwort, weil du es jederzeit einzeln widerrufen kannst. Beides funktioniert hier.</p>
+    <p class="hint">Ein Zugangstoken (Einstellungen → Anwendungen → Neues Token in Gitea) ist sicherer als das echte Passwort.</p>
 
     <button id="btnLoadRepos">Verbinden &amp; Repos laden</button>
     <div id="authStatus" class="status"></div>
   </div>
 
   <div class="card disabled-section" id="repoCard">
-    <h2><span class="step-num">2</span>Repository wählen</h2>
+    <h2><span class="step-num">2</span>Ziel wählen</h2>
+
+    <label for="ownerSelect">Konto / Organisation</label>
+    <select id="ownerSelect"><option value="">– bitte zuerst verbinden –</option></select>
 
     <label for="repoSelect">Vorhandenes Repo</label>
     <select id="repoSelect"><option value="">– bitte zuerst verbinden –</option></select>
 
-    <fieldset style="margin-top:16px;">
+    <fieldset>
       <legend>Oder neues Repo anlegen</legend>
       <div class="row">
         <input type="text" id="newRepoName" placeholder="repo-name">
-        <label style="display:flex;align-items:center;flex:0 0 auto;margin-top:0;">
+        <label class="checkline" style="flex:0 0 auto;">
           <input type="checkbox" id="newRepoPrivate" checked> Privat
         </label>
       </div>
@@ -99,20 +141,13 @@
   <div class="card disabled-section" id="zipCard">
     <h2><span class="step-num">3</span>ZIP-Datei wählen</h2>
     <input type="file" id="zipFile" accept=".zip">
-    <p class="hint">
-      <label style="display:inline;margin:0;">
-        <input type="checkbox" id="stripRoot" checked> Obersten Ordner aus der ZIP entfernen
-      </label>
-      – meistens gewünscht, wenn die ZIP einen einzelnen Projektordner enthält (z.B. "meinprojekt/...").
-    </p>
-    <p class="hint">
-      <label style="display:inline;margin:0;">
-        <input type="checkbox" id="removeMissing">
-        Dateien im Repo löschen, die nicht mehr in der ZIP enthalten sind
-      </label>
-      – nur aktivieren, wenn die ZIP wirklich den kompletten, aktuellen Stand enthält!
-    </p>
+    <label class="checkline"><input type="checkbox" id="stripRoot" checked> Obersten Ordner aus der ZIP entfernen</label>
+    <label class="checkline"><input type="checkbox" id="removeMissing"> Dateien im Repo löschen, die nicht mehr in der ZIP enthalten sind</label>
     <div id="zipStatus" class="status"></div>
+    <details id="fileListDetails" style="display:none;">
+      <summary>Enthaltene Dateien anzeigen</summary>
+      <div id="fileList"></div>
+    </details>
   </div>
 
   <div class="card disabled-section" id="uploadCard">
@@ -128,16 +163,63 @@
 
 </main>
 
-<footer>Läuft vollständig in deinem Browser. Es werden keine Daten an irgendeinen Server außer dem oben angegebenen Gitea-Server übertragen.</footer>
+<footer>
+  <div>
+    <a href="/impressum">Impressum</a>
+    <a href="/datenschutz">Datenschutz</a>
+    <a href="./LICENSE">Lizenzen &amp; Quellcode</a>
+    <a href="#" id="footerAnleitung">Anleitung</a>
+  </div>
+  <div>Alle Daten bleiben in deinem Browser · MIT-Lizenz</div>
+</footer>
+
+<!-- Anleitung -->
+<div class="overlay" id="helpOverlay">
+  <div class="modal">
+    <button class="close" data-close="helpOverlay">×</button>
+    <h3>Anleitung</h3>
+    <ol>
+      <li>Gitea-Server-URL, Benutzername und Passwort oder Zugangstoken eingeben, dann "Verbinden &amp; Repos laden".</li>
+      <li>Konto/Organisation wählen, dann ein vorhandenes Repo auswählen <strong>oder</strong> einen neuen Namen eingeben und "Repo erstellen".</li>
+      <li>ZIP-Datei auswählen. Enthält sie einen einzelnen umschließenden Ordner, wird der auf Wunsch automatisch entfernt.</li>
+      <li>Commit-Nachricht anpassen (optional) und "Jetzt hochladen" klicken.</li>
+    </ol>
+    <p>Dateien mit gleichem Pfad wie im Repo werden aktualisiert statt doppelt angelegt. Über
+      "Zugangsdaten in diesem Browser speichern" (Einstellungen, Zahnrad oben rechts) müssen Server,
+      Benutzername und Passwort nicht jedes Mal neu eingegeben werden.</p>
+  </div>
+</div>
+
+<!-- Einstellungen -->
+<div class="overlay" id="settingsOverlay">
+  <div class="modal">
+    <button class="close" data-close="settingsOverlay">×</button>
+    <h3>Einstellungen</h3>
+    <label class="checkline"><input type="checkbox" id="rememberCreds"> Zugangsdaten in diesem Browser speichern</label>
+    <p class="hint">Werden nur lokal in diesem Browser gespeichert, nirgendwo sonst übertragen. Auf einem
+      gemeinsam genutzten Rechner besser deaktiviert lassen.</p>
+    <button class="secondary small" id="btnClearCreds">Gespeicherte Zugangsdaten löschen</button>
+
+    <hr style="border-color:var(--border);margin:18px 0;">
+
+    <p class="hint" style="margin-top:0;">Zugangsdaten als Datei sichern oder auf einem anderen Gerät wieder einlesen:</p>
+    <button class="secondary small" id="btnExport">Export</button>
+    <button class="secondary small" id="btnImportTrigger">Import</button>
+    <input type="file" id="importFile" accept=".json" style="display:none;">
+  </div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 (function(){
   "use strict";
 
+  var STORAGE_KEY = "giteaUploaderCreds";
+
   var state = {
-    server: "", authHeader: "", repos: [], repo: null, // {owner, name, defaultBranch}
-    zipFiles: null // [{path, base64}]
+    server: "", authHeader: "", repos: [], owners: [], selectedOwner: "",
+    repo: null, // {owner, name, defaultBranch}
+    zipFiles: null
   };
 
   function el(id){ return document.getElementById(id); }
@@ -148,12 +230,8 @@
   }
   function enable(id){ el(id).classList.remove("disabled-section"); }
   function disable(id){ el(id).classList.add("disabled-section"); }
-  function b64utf8(str){
-    return btoa(unescape(encodeURIComponent(str)));
-  }
-  function apiUrl(path){
-    return state.server.replace(/\/+$/,"") + path;
-  }
+  function b64utf8(str){ return btoa(unescape(encodeURIComponent(str))); }
+  function apiUrl(path){ return state.server.replace(/\/+$/,"") + path; }
   function logLine(msg, isErr){
     var log = el("log");
     log.style.display = "block";
@@ -163,6 +241,18 @@
     log.appendChild(line);
     log.scrollTop = log.scrollHeight;
   }
+  function openOverlay(id){ el(id).classList.add("open"); }
+  function closeOverlay(id){ el(id).classList.remove("open"); }
+
+  document.querySelectorAll("[data-close]").forEach(function(btn){
+    btn.addEventListener("click", function(){ closeOverlay(btn.getAttribute("data-close")); });
+  });
+  document.querySelectorAll(".overlay").forEach(function(ov){
+    ov.addEventListener("click", function(e){ if(e.target === ov) ov.classList.remove("open"); });
+  });
+  el("btnHelp").addEventListener("click", function(){ openOverlay("helpOverlay"); });
+  el("footerAnleitung").addEventListener("click", function(e){ e.preventDefault(); openOverlay("helpOverlay"); });
+  el("btnSettings").addEventListener("click", function(){ openOverlay("settingsOverlay"); });
 
   async function apiFetch(path, opts){
     opts = opts || {};
@@ -173,15 +263,77 @@
     var res = await fetch(apiUrl(path), opts);
     if(!res.ok){
       var msg = "HTTP " + res.status;
-      try{
-        var body = await res.json();
-        if(body && body.message) msg += ": " + body.message;
-      }catch(e){}
+      try{ var body = await res.json(); if(body && body.message) msg += ": " + body.message; }catch(e){}
       throw new Error(msg);
     }
     if(res.status === 204) return null;
     return res.json();
   }
+
+  // ---- Zugangsdaten merken ----
+  function loadStoredCreds(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(!raw) return;
+      var data = JSON.parse(raw);
+      el("serverUrl").value = data.server || "";
+      el("username").value = data.username || "";
+      el("password").value = data.password || "";
+      el("rememberCreds").checked = true;
+    }catch(e){}
+  }
+  function saveCredsIfWanted(){
+    if(el("rememberCreds").checked){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        server: el("serverUrl").value.trim(),
+        username: el("username").value.trim(),
+        password: el("password").value
+      }));
+    }else{
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }
+  el("btnClearCreds").addEventListener("click", function(){
+    localStorage.removeItem(STORAGE_KEY);
+    el("rememberCreds").checked = false;
+    el("password").value = "";
+    setStatus("authStatus", "Gespeicherte Zugangsdaten gelöscht.", "ok");
+  });
+  loadStoredCreds();
+
+  // ---- Export / Import ----
+  el("btnExport").addEventListener("click", function(){
+    var data = {
+      server: el("serverUrl").value.trim(),
+      username: el("username").value.trim(),
+      password: el("password").value
+    };
+    var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "gitea-uploader-zugangsdaten.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+  el("btnImportTrigger").addEventListener("click", function(){ el("importFile").click(); });
+  el("importFile").addEventListener("change", function(){
+    var file = this.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var data = JSON.parse(reader.result);
+        el("serverUrl").value = data.server || "";
+        el("username").value = data.username || "";
+        el("password").value = data.password || "";
+        closeOverlay("settingsOverlay");
+        setStatus("authStatus", "Zugangsdaten importiert. Jetzt verbinden.", "ok");
+      }catch(e){
+        alert("Datei konnte nicht gelesen werden: " + e.message);
+      }
+    };
+    reader.readAsText(file);
+  });
 
   // ---- Schritt 1: Verbinden & Repos laden ----
   el("btnLoadRepos").addEventListener("click", async function(){
@@ -202,21 +354,45 @@
         if(batch.length < 50) break;
       }
       state.repos = all;
-      var sel = el("repoSelect");
-      sel.innerHTML = "";
-      if(all.length === 0){
-        sel.innerHTML = "<option value=''>– keine Repos gefunden –</option>";
-      }else{
-        sel.innerHTML = "<option value=''>– bitte auswählen –</option>" +
-          all.map(function(r, i){
-            return "<option value='" + i + "'>" + r.full_name + (r.private ? " (privat)" : "") + "</option>";
-          }).join("");
-      }
+
+      var orgs = [];
+      try{ orgs = await apiFetch("/api/v1/user/orgs?limit=50"); }catch(e){}
+      state.owners = [user].concat(orgs.map(function(o){ return o.username || o.name; }));
+
+      var ownerSel = el("ownerSelect");
+      ownerSel.innerHTML = state.owners.map(function(o){
+        return "<option value='" + o + "'>" + o + (o === user ? " (persönlich)" : "") + "</option>";
+      }).join("");
+      state.selectedOwner = state.owners[0];
+      refreshRepoOptions();
+
+      saveCredsIfWanted();
       enable("repoCard");
       setStatus("authStatus", "Verbunden. " + all.length + " Repo(s) gefunden.", "ok");
     }catch(e){
       setStatus("authStatus", "Login fehlgeschlagen: " + e.message, "err");
     }
+  });
+
+  function refreshRepoOptions(){
+    var sel = el("repoSelect");
+    var filtered = state.repos.filter(function(r){ return r.owner.login === state.selectedOwner; });
+    if(filtered.length === 0){
+      sel.innerHTML = "<option value=''>– keine Repos in diesem Konto –</option>";
+    }else{
+      sel.innerHTML = "<option value=''>– bitte auswählen –</option>" +
+        filtered.map(function(r){
+          var idx = state.repos.indexOf(r);
+          return "<option value='" + idx + "'>" + r.name + (r.private ? " (privat)" : "") + "</option>";
+        }).join("");
+    }
+    state.repo = null;
+    disable("zipCard");
+  }
+
+  el("ownerSelect").addEventListener("change", function(){
+    state.selectedOwner = this.value;
+    refreshRepoOptions();
   });
 
   el("repoSelect").addEventListener("change", function(){
@@ -235,16 +411,15 @@
     setStatus("repoStatus", "Erstelle Repo...", "");
     try{
       var priv = el("newRepoPrivate").checked;
-      var r = await apiFetch("/api/v1/user/repos", {
+      var isPersonal = state.selectedOwner === el("username").value.trim();
+      var path = isPersonal ? "/api/v1/user/repos" : "/api/v1/orgs/" + state.selectedOwner + "/repos";
+      var r = await apiFetch(path, {
         method: "POST",
         body: JSON.stringify({ name: name, private: priv, auto_init: true })
       });
       state.repos.push(r);
+      refreshRepoOptions();
       var sel = el("repoSelect");
-      var opt = document.createElement("option");
-      opt.value = state.repos.length - 1;
-      opt.textContent = r.full_name + (r.private ? " (privat)" : "");
-      sel.appendChild(opt);
       sel.value = state.repos.length - 1;
       sel.dispatchEvent(new Event("change"));
       setStatus("repoStatus", "Repo '" + r.full_name + "' erstellt und ausgewählt.", "ok");
@@ -272,22 +447,21 @@
         setStatus("zipStatus", "ZIP enthält keine Dateien.", "err");
         return;
       }
-      // gemeinsamen obersten Ordner erkennen
       if(el("stripRoot").checked){
         var firstSlash = entries[0].path.indexOf("/");
         if(firstSlash > 0){
           var prefix = entries[0].path.substring(0, firstSlash + 1);
           var allShare = entries.every(function(e){ return e.path.indexOf(prefix) === 0; });
           if(allShare){
-            entries = entries.map(function(e){
-              return { path: e.path.substring(prefix.length), base64: e.base64 };
-            });
+            entries = entries.map(function(e){ return { path: e.path.substring(prefix.length), base64: e.base64 }; });
           }
         }
       }
       state.zipFiles = entries;
       enable("uploadCard");
       setStatus("zipStatus", entries.length + " Datei(en) gefunden, bereit zum Hochladen.", "ok");
+      el("fileList").textContent = entries.map(function(e){ return e.path; }).join("\n");
+      el("fileListDetails").style.display = "block";
     }catch(e){
       setStatus("zipStatus", "ZIP konnte nicht gelesen werden: " + e.message, "err");
     }
@@ -307,16 +481,13 @@
     setStatus("uploadStatus", "Ermittle aktuellen Stand im Repo...", "");
 
     try{
-      // aktuellen Baum holen (welche Dateien gibt es schon, mit welcher SHA)
       var existing = {};
       try{
         var tree = await apiFetch(
           "/api/v1/repos/" + state.repo.owner + "/" + state.repo.name +
           "/git/trees/" + encodeURIComponent(state.repo.defaultBranch) + "?recursive=true"
         );
-        (tree.tree || []).forEach(function(t){
-          if(t.type === "blob") existing[t.path] = t.sha;
-        });
+        (tree.tree || []).forEach(function(t){ if(t.type === "blob") existing[t.path] = t.sha; });
       }catch(e){
         logLine("Hinweis: Konnte bestehenden Stand nicht lesen (evtl. leeres Repo) - " + e.message, false);
       }
@@ -325,35 +496,26 @@
       var operations = state.zipFiles.map(function(f){
         newPaths[f.path] = true;
         var op = { path: f.path, content: f.base64 };
-        if(existing.hasOwnProperty(f.path)){
-          op.operation = "update";
-          op.sha = existing[f.path];
-        }else{
-          op.operation = "create";
-        }
+        if(existing.hasOwnProperty(f.path)){ op.operation = "update"; op.sha = existing[f.path]; }
+        else{ op.operation = "create"; }
         return op;
       });
 
       if(el("removeMissing").checked){
         Object.keys(existing).forEach(function(p){
-          if(!newPaths[p]){
-            operations.push({ path: p, operation: "delete", sha: existing[p] });
-          }
+          if(!newPaths[p]) operations.push({ path: p, operation: "delete", sha: existing[p] });
         });
       }
 
-      // in Batches aufteilen (Größe & Anzahl begrenzen, wegen Server-Limits)
       var batches = [];
       var current = [];
       var currentSize = 0;
       var MAX_FILES = 20;
-      var MAX_BYTES = 3 * 1024 * 1024; // ~3MB Base64 pro Anfrage
+      var MAX_BYTES = 3 * 1024 * 1024;
       operations.forEach(function(op){
         var size = op.content ? op.content.length : 0;
         if(current.length >= MAX_FILES || (currentSize + size) > MAX_BYTES){
-          batches.push(current);
-          current = [];
-          currentSize = 0;
+          batches.push(current); current = []; currentSize = 0;
         }
         current.push(op);
         currentSize += size;
@@ -367,14 +529,10 @@
         setStatus("uploadStatus", "Lade Batch " + (b+1) + " von " + batches.length + " hoch...", "");
         await apiFetch(
           "/api/v1/repos/" + state.repo.owner + "/" + state.repo.name + "/contents",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              files: batches[b],
-              message: msg + " (" + (b+1) + "/" + batches.length + ")",
+          { method: "POST", body: JSON.stringify({
+              files: batches[b], message: msg + " (" + (b+1) + "/" + batches.length + ")",
               branch: state.repo.defaultBranch
-            })
-          }
+          }) }
         );
         done += batches[b].length;
         el("progressBar").style.width = Math.round(done / total * 100) + "%";
