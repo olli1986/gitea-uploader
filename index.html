@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZIP zu Gitea hochladen</title>
+<style>
+  :root{
+    --bg:#eef0f2; --card:#ffffff; --text:#1a1a1a; --muted:#5a6472;
+    --accent:#f07d1e; --accent-dark:#c9650f; --border:#d7dbe0;
+    --ok:#1a7f37; --err:#c0392b; --header-bg:#111214;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);}
+  header{background:var(--header-bg);color:#fff;padding:22px 24px;}
+  header h1{margin:0;font-size:1.6rem;}
+  header h1 .accent{color:var(--accent);}
+  header p{margin:6px 0 0;color:#b8bcc2;font-size:.95rem;}
+  main{max-width:760px;margin:24px auto 60px;padding:0 16px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:20px;}
+  .card h2{margin:0 0 4px;font-size:1.05rem;}
+  .card .step-num{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;font-size:.85rem;margin-right:8px;}
+  label{display:block;font-size:.88rem;color:var(--muted);margin:12px 0 4px;}
+  input[type=text],input[type=password],input[type=url],select{
+    width:100%;padding:9px 10px;border:1px solid var(--border);border-radius:6px;font-size:.95rem;background:#fbfbfc;
+  }
+  input[type=checkbox]{margin-right:6px;}
+  .row{display:flex;gap:12px;flex-wrap:wrap;}
+  .row > *{flex:1;min-width:160px;}
+  button{background:var(--accent);color:#fff;border:none;border-radius:6px;padding:10px 16px;font-size:.95rem;cursor:pointer;margin-top:14px;}
+  button:hover{background:var(--accent-dark);}
+  button.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+  button.secondary:hover{background:#f3f4f5;}
+  button:disabled{background:#c9ccd1;cursor:not-allowed;}
+  .hint{font-size:.82rem;color:var(--muted);margin-top:6px;}
+  .status{margin-top:14px;font-size:.9rem;}
+  .status.ok{color:var(--ok);}
+  .status.err{color:var(--err);}
+  #log{margin-top:14px;background:#0e0f11;color:#d7dbe0;border-radius:8px;padding:12px;font-family:ui-monospace,Consolas,monospace;font-size:.82rem;max-height:220px;overflow-y:auto;white-space:pre-wrap;display:none;}
+  #log .l-ok{color:#7ed99a;}
+  #log .l-err{color:#ff8a80;}
+  .progress-wrap{margin-top:10px;height:8px;border-radius:4px;background:#e2e4e7;overflow:hidden;display:none;}
+  .progress-bar{height:100%;background:var(--accent);width:0%;transition:width .2s;}
+  fieldset{border:1px solid var(--border);border-radius:8px;padding:14px;margin-top:8px;}
+  fieldset legend{font-size:.85rem;color:var(--muted);padding:0 6px;}
+  .disabled-section{opacity:.5;pointer-events:none;}
+  footer{text-align:center;color:var(--muted);font-size:.8rem;padding:20px;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>ZIP <span class="accent">→</span> Gitea</h1>
+  <p>Lädt eine ZIP-Datei direkt aus deinem Browser in ein Gitea-Repository hoch. Nichts verlässt deinen Rechner außer der Verbindung zu deinem eigenen Gitea-Server.</p>
+</header>
+
+<main>
+
+  <div class="card">
+    <h2><span class="step-num">1</span>Gitea-Zugang</h2>
+    <label for="serverUrl">Gitea-Server</label>
+    <input type="url" id="serverUrl" value="https://git.obraasch.de" placeholder="https://git.example.de">
+
+    <div class="row">
+      <div>
+        <label for="username">Benutzername</label>
+        <input type="text" id="username" autocomplete="username">
+      </div>
+      <div>
+        <label for="password">Passwort oder Zugangstoken</label>
+        <input type="password" id="password" autocomplete="current-password">
+      </div>
+    </div>
+    <p class="hint">Ein Zugangstoken (Einstellungen → Anwendungen → Neues Token in Gitea) ist sicherer als das echte Passwort, weil du es jederzeit einzeln widerrufen kannst. Beides funktioniert hier.</p>
+
+    <button id="btnLoadRepos">Verbinden &amp; Repos laden</button>
+    <div id="authStatus" class="status"></div>
+  </div>
+
+  <div class="card disabled-section" id="repoCard">
+    <h2><span class="step-num">2</span>Repository wählen</h2>
+
+    <label for="repoSelect">Vorhandenes Repo</label>
+    <select id="repoSelect"><option value="">– bitte zuerst verbinden –</option></select>
+
+    <fieldset style="margin-top:16px;">
+      <legend>Oder neues Repo anlegen</legend>
+      <div class="row">
+        <input type="text" id="newRepoName" placeholder="repo-name">
+        <label style="display:flex;align-items:center;flex:0 0 auto;margin-top:0;">
+          <input type="checkbox" id="newRepoPrivate" checked> Privat
+        </label>
+      </div>
+      <button class="secondary" id="btnCreateRepo">Repo erstellen &amp; auswählen</button>
+    </fieldset>
+    <div id="repoStatus" class="status"></div>
+  </div>
+
+  <div class="card disabled-section" id="zipCard">
+    <h2><span class="step-num">3</span>ZIP-Datei wählen</h2>
+    <input type="file" id="zipFile" accept=".zip">
+    <p class="hint">
+      <label style="display:inline;margin:0;">
+        <input type="checkbox" id="stripRoot" checked> Obersten Ordner aus der ZIP entfernen
+      </label>
+      – meistens gewünscht, wenn die ZIP einen einzelnen Projektordner enthält (z.B. "meinprojekt/...").
+    </p>
+    <p class="hint">
+      <label style="display:inline;margin:0;">
+        <input type="checkbox" id="removeMissing">
+        Dateien im Repo löschen, die nicht mehr in der ZIP enthalten sind
+      </label>
+      – nur aktivieren, wenn die ZIP wirklich den kompletten, aktuellen Stand enthält!
+    </p>
+    <div id="zipStatus" class="status"></div>
+  </div>
+
+  <div class="card disabled-section" id="uploadCard">
+    <h2><span class="step-num">4</span>Hochladen</h2>
+    <label for="commitMsg">Commit-Nachricht</label>
+    <input type="text" id="commitMsg" value="Upload per ZIP-Tool">
+
+    <button id="btnUpload">Jetzt hochladen</button>
+    <div class="progress-wrap" id="progressWrap"><div class="progress-bar" id="progressBar"></div></div>
+    <div id="uploadStatus" class="status"></div>
+    <div id="log"></div>
+  </div>
+
+</main>
+
+<footer>Läuft vollständig in deinem Browser. Es werden keine Daten an irgendeinen Server außer dem oben angegebenen Gitea-Server übertragen.</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var state = {
+    server: "", authHeader: "", repos: [], repo: null, // {owner, name, defaultBranch}
+    zipFiles: null // [{path, base64}]
+  };
+
+  function el(id){ return document.getElementById(id); }
+  function setStatus(id, msg, cls){
+    var n = el(id);
+    n.textContent = msg;
+    n.className = "status" + (cls ? " " + cls : "");
+  }
+  function enable(id){ el(id).classList.remove("disabled-section"); }
+  function disable(id){ el(id).classList.add("disabled-section"); }
+  function b64utf8(str){
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+  function apiUrl(path){
+    return state.server.replace(/\/+$/,"") + path;
+  }
+  function logLine(msg, isErr){
+    var log = el("log");
+    log.style.display = "block";
+    var line = document.createElement("div");
+    line.className = isErr ? "l-err" : "l-ok";
+    line.textContent = msg;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  async function apiFetch(path, opts){
+    opts = opts || {};
+    opts.headers = Object.assign({
+      "Authorization": state.authHeader,
+      "Content-Type": "application/json"
+    }, opts.headers || {});
+    var res = await fetch(apiUrl(path), opts);
+    if(!res.ok){
+      var msg = "HTTP " + res.status;
+      try{
+        var body = await res.json();
+        if(body && body.message) msg += ": " + body.message;
+      }catch(e){}
+      throw new Error(msg);
+    }
+    if(res.status === 204) return null;
+    return res.json();
+  }
+
+  // ---- Schritt 1: Verbinden & Repos laden ----
+  el("btnLoadRepos").addEventListener("click", async function(){
+    state.server = el("serverUrl").value.trim();
+    var user = el("username").value.trim();
+    var pass = el("password").value;
+    if(!state.server || !user || !pass){
+      setStatus("authStatus", "Bitte Server, Benutzername und Passwort/Token ausfüllen.", "err");
+      return;
+    }
+    state.authHeader = "Basic " + b64utf8(user + ":" + pass);
+    setStatus("authStatus", "Verbinde...", "");
+    try{
+      var all = [];
+      for(var page = 1; page <= 5; page++){
+        var batch = await apiFetch("/api/v1/user/repos?limit=50&page=" + page);
+        all = all.concat(batch);
+        if(batch.length < 50) break;
+      }
+      state.repos = all;
+      var sel = el("repoSelect");
+      sel.innerHTML = "";
+      if(all.length === 0){
+        sel.innerHTML = "<option value=''>– keine Repos gefunden –</option>";
+      }else{
+        sel.innerHTML = "<option value=''>– bitte auswählen –</option>" +
+          all.map(function(r, i){
+            return "<option value='" + i + "'>" + r.full_name + (r.private ? " (privat)" : "") + "</option>";
+          }).join("");
+      }
+      enable("repoCard");
+      setStatus("authStatus", "Verbunden. " + all.length + " Repo(s) gefunden.", "ok");
+    }catch(e){
+      setStatus("authStatus", "Login fehlgeschlagen: " + e.message, "err");
+    }
+  });
+
+  el("repoSelect").addEventListener("change", function(){
+    var i = this.value;
+    if(i === ""){ state.repo = null; disable("zipCard"); return; }
+    var r = state.repos[i];
+    state.repo = { owner: r.owner.login, name: r.name, defaultBranch: r.default_branch || "main" };
+    setStatus("repoStatus", "Ausgewählt: " + r.full_name + " (Branch: " + state.repo.defaultBranch + ")", "ok");
+    enable("zipCard");
+  });
+
+  // ---- Schritt 2: Neues Repo erstellen ----
+  el("btnCreateRepo").addEventListener("click", async function(){
+    var name = el("newRepoName").value.trim();
+    if(!name){ setStatus("repoStatus", "Bitte einen Repo-Namen eingeben.", "err"); return; }
+    setStatus("repoStatus", "Erstelle Repo...", "");
+    try{
+      var priv = el("newRepoPrivate").checked;
+      var r = await apiFetch("/api/v1/user/repos", {
+        method: "POST",
+        body: JSON.stringify({ name: name, private: priv, auto_init: true })
+      });
+      state.repos.push(r);
+      var sel = el("repoSelect");
+      var opt = document.createElement("option");
+      opt.value = state.repos.length - 1;
+      opt.textContent = r.full_name + (r.private ? " (privat)" : "");
+      sel.appendChild(opt);
+      sel.value = state.repos.length - 1;
+      sel.dispatchEvent(new Event("change"));
+      setStatus("repoStatus", "Repo '" + r.full_name + "' erstellt und ausgewählt.", "ok");
+    }catch(e){
+      setStatus("repoStatus", "Erstellen fehlgeschlagen: " + e.message, "err");
+    }
+  });
+
+  // ---- Schritt 3: ZIP einlesen ----
+  el("zipFile").addEventListener("change", async function(){
+    var file = this.files[0];
+    if(!file) return;
+    setStatus("zipStatus", "Lese ZIP...", "");
+    try{
+      var zip = await JSZip.loadAsync(file);
+      var entries = [];
+      var names = Object.keys(zip.files);
+      for(var i = 0; i < names.length; i++){
+        var entry = zip.files[names[i]];
+        if(entry.dir) continue;
+        var b64 = await entry.async("base64");
+        entries.push({ path: entry.name, base64: b64 });
+      }
+      if(entries.length === 0){
+        setStatus("zipStatus", "ZIP enthält keine Dateien.", "err");
+        return;
+      }
+      // gemeinsamen obersten Ordner erkennen
+      if(el("stripRoot").checked){
+        var firstSlash = entries[0].path.indexOf("/");
+        if(firstSlash > 0){
+          var prefix = entries[0].path.substring(0, firstSlash + 1);
+          var allShare = entries.every(function(e){ return e.path.indexOf(prefix) === 0; });
+          if(allShare){
+            entries = entries.map(function(e){
+              return { path: e.path.substring(prefix.length), base64: e.base64 };
+            });
+          }
+        }
+      }
+      state.zipFiles = entries;
+      enable("uploadCard");
+      setStatus("zipStatus", entries.length + " Datei(en) gefunden, bereit zum Hochladen.", "ok");
+    }catch(e){
+      setStatus("zipStatus", "ZIP konnte nicht gelesen werden: " + e.message, "err");
+    }
+  });
+
+  // ---- Schritt 4: Hochladen ----
+  el("btnUpload").addEventListener("click", async function(){
+    if(!state.repo || !state.zipFiles){
+      setStatus("uploadStatus", "Bitte erst Repo wählen und ZIP einlesen.", "err");
+      return;
+    }
+    var btn = el("btnUpload");
+    btn.disabled = true;
+    el("log").innerHTML = "";
+    el("log").style.display = "block";
+    el("progressWrap").style.display = "block";
+    setStatus("uploadStatus", "Ermittle aktuellen Stand im Repo...", "");
+
+    try{
+      // aktuellen Baum holen (welche Dateien gibt es schon, mit welcher SHA)
+      var existing = {};
+      try{
+        var tree = await apiFetch(
+          "/api/v1/repos/" + state.repo.owner + "/" + state.repo.name +
+          "/git/trees/" + encodeURIComponent(state.repo.defaultBranch) + "?recursive=true"
+        );
+        (tree.tree || []).forEach(function(t){
+          if(t.type === "blob") existing[t.path] = t.sha;
+        });
+      }catch(e){
+        logLine("Hinweis: Konnte bestehenden Stand nicht lesen (evtl. leeres Repo) - " + e.message, false);
+      }
+
+      var newPaths = {};
+      var operations = state.zipFiles.map(function(f){
+        newPaths[f.path] = true;
+        var op = { path: f.path, content: f.base64 };
+        if(existing.hasOwnProperty(f.path)){
+          op.operation = "update";
+          op.sha = existing[f.path];
+        }else{
+          op.operation = "create";
+        }
+        return op;
+      });
+
+      if(el("removeMissing").checked){
+        Object.keys(existing).forEach(function(p){
+          if(!newPaths[p]){
+            operations.push({ path: p, operation: "delete", sha: existing[p] });
+          }
+        });
+      }
+
+      // in Batches aufteilen (Größe & Anzahl begrenzen, wegen Server-Limits)
+      var batches = [];
+      var current = [];
+      var currentSize = 0;
+      var MAX_FILES = 20;
+      var MAX_BYTES = 3 * 1024 * 1024; // ~3MB Base64 pro Anfrage
+      operations.forEach(function(op){
+        var size = op.content ? op.content.length : 0;
+        if(current.length >= MAX_FILES || (currentSize + size) > MAX_BYTES){
+          batches.push(current);
+          current = [];
+          currentSize = 0;
+        }
+        current.push(op);
+        currentSize += size;
+      });
+      if(current.length) batches.push(current);
+
+      var msg = el("commitMsg").value.trim() || "Upload per ZIP-Tool";
+      var done = 0, total = operations.length;
+
+      for(var b = 0; b < batches.length; b++){
+        setStatus("uploadStatus", "Lade Batch " + (b+1) + " von " + batches.length + " hoch...", "");
+        await apiFetch(
+          "/api/v1/repos/" + state.repo.owner + "/" + state.repo.name + "/contents",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              files: batches[b],
+              message: msg + " (" + (b+1) + "/" + batches.length + ")",
+              branch: state.repo.defaultBranch
+            })
+          }
+        );
+        done += batches[b].length;
+        el("progressBar").style.width = Math.round(done / total * 100) + "%";
+        logLine("Batch " + (b+1) + "/" + batches.length + " ok (" + batches[b].length + " Datei(en))", false);
+      }
+
+      setStatus("uploadStatus", "Fertig! " + total + " Datei(en) hochgeladen/aktualisiert.", "ok");
+    }catch(e){
+      setStatus("uploadStatus", "Fehler: " + e.message, "err");
+      logLine("Abgebrochen: " + e.message, true);
+    }finally{
+      btn.disabled = false;
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
