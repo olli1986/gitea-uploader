@@ -62,8 +62,11 @@
   .disabled-section{opacity:.45;pointer-events:none;}
   details{margin-top:10px;font-size:.85rem;color:var(--muted);}
   details summary{cursor:pointer;color:var(--text);}
-  #fileList{max-height:150px;overflow-y:auto;margin-top:8px;font-family:ui-monospace,Consolas,monospace;
+  #fileList{max-height:220px;overflow-y:auto;margin-top:8px;font-family:ui-monospace,Consolas,monospace;
        font-size:.78rem;background:var(--panel-alt);border-radius:6px;padding:8px;border:1px solid var(--border);}
+  #fileList label{display:flex;align-items:center;padding:3px 0;color:var(--text);margin:0;}
+  #fileList label input{margin-right:8px;flex:0 0 auto;}
+  #fileList label span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   footer{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;color:var(--muted);
          font-size:.8rem;padding:18px 24px;border-top:1px solid var(--border);}
   footer a{color:var(--muted);text-decoration:none;margin-right:16px;}
@@ -142,12 +145,18 @@
     <h2><span class="step-num">3</span>ZIP-Datei wählen</h2>
     <input type="file" id="zipFile" accept=".zip">
     <label class="checkline"><input type="checkbox" id="stripRoot" checked> Obersten Ordner aus der ZIP entfernen</label>
-    <label class="checkline"><input type="checkbox" id="removeMissing"> Dateien im Repo löschen, die nicht mehr in der ZIP enthalten sind</label>
+    <label class="checkline"><input type="checkbox" id="removeMissing"> Dateien im Repo löschen, die nicht mehr in der ZIP enthalten sind (abgewählte Dateien zählen als vorhanden, werden nicht gelöscht)</label>
     <div id="zipStatus" class="status"></div>
-    <details id="fileListDetails" style="display:none;">
-      <summary>Enthaltene Dateien anzeigen</summary>
+    <div id="fileListDetails" style="display:none;">
+      <div class="checkline" style="justify-content:space-between;margin-top:14px;">
+        <span>Dateien zum Hochladen auswählen:</span>
+        <span>
+          <button type="button" class="secondary small" id="btnSelectAll">Alle</button>
+          <button type="button" class="secondary small" id="btnSelectNone">Keine</button>
+        </span>
+      </div>
       <div id="fileList"></div>
-    </details>
+    </div>
   </div>
 
   <div class="card disabled-section" id="uploadCard">
@@ -457,20 +466,47 @@
           }
         }
       }
+      entries.forEach(function(e){ e.selected = true; });
       state.zipFiles = entries;
       enable("uploadCard");
       setStatus("zipStatus", entries.length + " Datei(en) gefunden, bereit zum Hochladen.", "ok");
-      el("fileList").textContent = entries.map(function(e){ return e.path; }).join("\n");
+      renderFileList();
       el("fileListDetails").style.display = "block";
     }catch(e){
       setStatus("zipStatus", "ZIP konnte nicht gelesen werden: " + e.message, "err");
     }
   });
 
+  function renderFileList(){
+    var container = el("fileList");
+    container.innerHTML = state.zipFiles.map(function(f, i){
+      return "<label><input type='checkbox' data-idx='" + i + "'" + (f.selected ? " checked" : "") +
+             "><span>" + f.path + "</span></label>";
+    }).join("");
+    container.querySelectorAll("input[type=checkbox]").forEach(function(cb){
+      cb.addEventListener("change", function(){
+        state.zipFiles[parseInt(this.getAttribute("data-idx"), 10)].selected = this.checked;
+      });
+    });
+  }
+  el("btnSelectAll").addEventListener("click", function(){
+    state.zipFiles.forEach(function(f){ f.selected = true; });
+    renderFileList();
+  });
+  el("btnSelectNone").addEventListener("click", function(){
+    state.zipFiles.forEach(function(f){ f.selected = false; });
+    renderFileList();
+  });
+
   // ---- Schritt 4: Hochladen ----
   el("btnUpload").addEventListener("click", async function(){
     if(!state.repo || !state.zipFiles){
       setStatus("uploadStatus", "Bitte erst Repo wählen und ZIP einlesen.", "err");
+      return;
+    }
+    var selectedFiles = state.zipFiles.filter(function(f){ return f.selected; });
+    if(selectedFiles.length === 0){
+      setStatus("uploadStatus", "Keine Datei ausgewählt.", "err");
       return;
     }
     var btn = el("btnUpload");
@@ -492,9 +528,12 @@
         logLine("Hinweis: Konnte bestehenden Stand nicht lesen (evtl. leeres Repo) - " + e.message, false);
       }
 
-      var newPaths = {};
-      var operations = state.zipFiles.map(function(f){
-        newPaths[f.path] = true;
+      // Alle Pfade aus der ZIP (auch abgewählte) gelten als "vorhanden" -
+      // eine Datei nur abzuwählen soll sie nie löschen, nur nicht überschreiben.
+      var allZipPaths = {};
+      state.zipFiles.forEach(function(f){ allZipPaths[f.path] = true; });
+
+      var operations = selectedFiles.map(function(f){
         var op = { path: f.path, content: f.base64 };
         if(existing.hasOwnProperty(f.path)){ op.operation = "update"; op.sha = existing[f.path]; }
         else{ op.operation = "create"; }
@@ -503,7 +542,7 @@
 
       if(el("removeMissing").checked){
         Object.keys(existing).forEach(function(p){
-          if(!newPaths[p]) operations.push({ path: p, operation: "delete", sha: existing[p] });
+          if(!allZipPaths[p]) operations.push({ path: p, operation: "delete", sha: existing[p] });
         });
       }
 

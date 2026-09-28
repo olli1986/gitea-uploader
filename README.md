@@ -13,7 +13,9 @@ Gitea-Server kommuniziert.
    "Verbinden & Repos laden" klicken.
 2. Konto/Organisation wählen, dann bestehendes Repo aus der Liste wählen
    **oder** einen neuen Namen eingeben und "Repo erstellen" klicken.
-3. ZIP-Datei auswählen.
+3. ZIP-Datei auswählen. Danach lässt sich jede enthaltene Datei einzeln abhaken - abgewählte Dateien werden
+   beim Hochladen übersprungen (auch dann nicht gelöscht, wenn "Dateien löschen, die nicht mehr in der ZIP
+   enthalten sind" aktiv ist).
 4. Commit-Nachricht anpassen (optional) und "Jetzt hochladen" klicken.
 
 Vorhandene Dateien mit gleichem Pfad werden aktualisiert statt doppelt
