@@ -17,6 +17,9 @@ Gitea-Server kommuniziert.
    beim Hochladen übersprungen (auch dann nicht gelöscht, wenn "Dateien löschen, die nicht mehr in der ZIP
    enthalten sind" aktiv ist).
 4. Commit-Nachricht anpassen (optional) und "Jetzt hochladen" klicken.
+5. Optional: Unter "Release erstellen" Tag, Titel und Beschreibung eintragen, die gewählte ZIP
+   und/oder weitere Dateien als Anhang auswählen und "Release erstellen" klicken. Das geht auch
+   unabhängig vom Hochladen, sobald ein Repo gewählt ist.
 
 Vorhandene Dateien mit gleichem Pfad werden aktualisiert statt doppelt
 angelegt. Über die Checkbox "Dateien im Repo löschen, die nicht mehr in
